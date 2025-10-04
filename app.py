@@ -5,13 +5,16 @@ from datetime import datetime # <-- NUEVO: Para registrar la fecha
 
 # --- CONFIGURACIÓN Y CONEXIÓN CON GOOGLE SHEETS ---
 CREDS = st.secrets["gcp_creds"]
-NOMBRE_HOJA_CALCULO = "BaseDeDatosLiga"
 
-def conectar_a_gsheets(nombre_hoja): # <-- MODIFICADO: Ahora especificamos qué pestaña queremos
-    """Conecta con Google Sheets y selecciona una hoja específica."""
+# PEGA AQUÍ LA ID QUE COPIASTE DE LA URL
+ID_HOJA_CALCULO = "18x6wCv0E7FOpuvwZpWYRSFi56E-_RR2Gm1deHyCLo2Y" 
+
+def conectar_a_gsheets(nombre_hoja):
+    """Conecta con Google Sheets usando la ID única del archivo."""
     try:
         gc = gspread.service_account_from_dict(CREDS)
-        sh = gc.open(NOMBRE_HOJA_CALCULO).worksheet(nombre_hoja) # <-- USA .worksheet()
+        # Usamos open_by_key para abrir por ID, es el método más fiable
+        sh = gc.open_by_key(ID_HOJA_CALCULO).worksheet(nombre_hoja)
         return sh
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {e}")
