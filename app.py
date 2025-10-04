@@ -69,7 +69,7 @@ def calcular_todas_las_estadisticas(historial):
                 if resultado == "Victoria" and ganador == aspirante:
                     clasificacion[aspirante]['Destronamientos'] += 1
                     portador_trofeo = aspirante
-                else: # Si el portador gana o empata, retiene el trofeo
+                else: 
                     clasificacion[portador_en_partido]['Partidos con Trofeo'] += 1
 
     for equipo, stats in clasificacion.items():
@@ -101,16 +101,18 @@ def guardar_clasificacion_completa():
     sh_clasif = conectar_a_gsheets("Hoja1")
     if sh_clasif:
         clasif_para_guardar = st.session_state.get('clasificacion', {})
+        # CAMBIO: Nuevos nombres y orden de encabezados
         encabezados = [
-            "Equipo", "T", "V", "E", "D", "P", "PPM", "Partidos con Trofeo",
-            "Mejor Racha", "Destronamientos", "Intentos", "Indice Destronamiento"
+            "Equipo", "PJ", "V", "E", "D", "P", "PPP", "Partidos con Trofeo",
+            "Mejor Racha", "Intentos", "Destronamientos", "Indice Destronamiento"
         ]
         datos = [encabezados]
         for eq, stats in clasif_para_guardar.items():
+            # CAMBIO: Nuevo orden de guardado
             fila = [
                 eq, stats['T'], stats['V'], stats['E'], stats['D'], stats['P'], stats['PPM'],
-                stats['Partidos con Trofeo'], stats['Mejor Racha'], stats['Destronamientos'], 
-                stats['Intentos'], stats['Indice Destronamiento']
+                stats['Partidos con Trofeo'], stats['Mejor Racha'], stats['Intentos'],
+                stats['Destronamientos'], stats['Indice Destronamiento']
             ]
             datos.append(fila)
         sh_clasif.clear()
@@ -199,13 +201,22 @@ def pagina_mostrar_clasificacion():
         df['PPM'] = df['PPM'].map('{:,.2f}'.format)
         df['Indice Destronamiento'] = df['Indice Destronamiento'].map('{:,.2f}%'.format)
 
-        # NUEVO ORDEN DE COLUMNAS
-        nuevo_orden = [
+        # CAMBIO: Nuevo orden de columnas para mostrar
+        nuevo_orden_display = [
             "T", "V", "E", "D", "P", "PPM",
-            "Partidos con Trofeo", "Mejor Racha", "Destronamientos", 
-            "Intentos", "Indice Destronamiento"
+            "Partidos con Trofeo", "Mejor Racha", "Intentos", "Destronamientos",
+            "Indice Destronamiento"
         ]
-        st.dataframe(df[nuevo_orden])
+        # CAMBIO: Nuevos nombres para las columnas
+        nuevos_nombres = {
+            "T": "PJ", "V": "V", "E": "E", "D": "D", "P": "P", "PPM": "PPP",
+            "Partidos con Trofeo": "Partidos con Trofeo", "Mejor Racha": "Mejor Racha",
+            "Intentos": "Intentos", "Destronamientos": "Destronamientos", 
+            "Indice Destronamiento": "Índice Éxito"
+        }
+        
+        df_display = df[nuevo_orden_display].rename(columns=nuevos_nombres)
+        st.dataframe(df_display)
 
 def pagina_historial_partidos():
     st.header("📜 Historial de Partidos")
