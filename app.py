@@ -5,7 +5,7 @@ from datetime import datetime
 
 # --- CONFIGURACIÓN Y CONEXIÓN ---
 CREDS = st.secrets["gcp_creds"]
-ID_HOJA_CALCULO = "AQUI_VA_LA_ID_DE_TU_HOJA" # ¡¡¡ASEGÚRATE DE QUE TU ID ESTÁ AQUÍ!!!
+ID_HOJA_CALCULO = "18x6wCv0E7FOpuvwZpWYRSFi56E-_RR2Gm1deHyCLo2Y" # ¡¡¡ASEGÚRATE DE QUE TU ID ESTÁ AQUÍ!!!
 
 def conectar_a_gsheets(nombre_hoja):
     try:
