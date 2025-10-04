@@ -228,8 +228,8 @@ def pagina_borrar_datos():
             st.rerun()
 
 # --- MENÚ PRINCIPAL ---
-st.set_page_config(page_title="Liga del Destronamiento", page_icon="👑", layout="wide")
-st.title("👑 Liga del Destronamiento")
+st.set_page_config(page_title="Torneo No Oficial de Inglaterra (ToNOI)", page_icon="👑", layout="wide")
+st.title("👑 Torneo No Oficial de Inglaterra (ToNOI)")
 st.sidebar.title("Menú")
 
 opciones = ("Añadir Partido", "Clasificación General", "Historial de Partidos", "Borrar Todo")
