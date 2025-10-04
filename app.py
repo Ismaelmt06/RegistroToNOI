@@ -1,72 +1,74 @@
 import streamlit as st
 import pandas as pd
-import gspread # Nueva librería
+import gspread
+from datetime import datetime # <-- NUEVO: Para registrar la fecha
 
 # --- CONFIGURACIÓN Y CONEXIÓN CON GOOGLE SHEETS ---
-
-# Usamos los "Secrets" de Streamlit para guardar las credenciales de forma segura
 CREDS = st.secrets["gcp_creds"]
-NOMBRE_HOJA_CALCULO = "BaseDeDatosToNOI" # ¡Asegúrate de que este nombre coincida!
+NOMBRE_HOJA_CALCULO = "BaseDeDatosLiga"
 
-def conectar_a_gsheets():
-    """Conecta con Google Sheets usando la URL directa de la hoja."""
+def conectar_a_gsheets(nombre_hoja): # <-- MODIFICADO: Ahora especificamos qué pestaña queremos
+    """Conecta con Google Sheets y selecciona una hoja específica."""
     try:
-        # Pega la URL completa de tu hoja de cálculo aquí dentro de las comillas
-        URL_HOJA_CALCULO = "https://docs.google.com/spreadsheets/d/18x6wCv0E7FOpuvwZpWYRSFi56E-_RR2Gm1deHyCLo2Y/edit?gid=0#gid=0"
-
         gc = gspread.service_account_from_dict(CREDS)
-        sh = gc.open_by_url(URL_HOJA_CALCULO).sheet1
+        sh = gc.open(NOMBRE_HOJA_CALCULO).worksheet(nombre_hoja) # <-- USA .worksheet()
         return sh
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {e}")
         return None
 
 def cargar_datos():
-    """Carga los datos desde Google Sheets y los convierte a un diccionario."""
-    sh = conectar_a_gsheets()
+    """Carga los datos desde la hoja 'sheet1' (la principal) y los convierte a un diccionario."""
+    sh = conectar_a_gsheets("Hoja1") # Usamos el nombre por defecto de la primera hoja
     if sh:
         try:
-            # get_all_records convierte la hoja en una lista de diccionarios
             records = sh.get_all_records()
-            # Convertimos la lista a un diccionario con el formato que usa la app
-            tabla = {str(rec['Equipo']): {
-                'V': int(rec['V']), 'E': int(rec['E']), 'D': int(rec['D']),
-                'T': int(rec['T']), 'P': int(rec['P']), 'PPM': float(rec['PPM'])
-            } for rec in records}
+            tabla = {}
+            for rec in records:
+                ppm_texto = str(rec.get('PPM', 0)).replace(',', '.')
+                tabla[str(rec['Equipo'])] = {
+                    'V': int(rec.get('V', 0)), 'E': int(rec.get('E', 0)), 'D': int(rec.get('D', 0)),
+                    'T': int(rec.get('T', 0)), 'P': int(rec.get('P', 0)), 'PPM': float(ppm_texto)
+                }
             return tabla
         except Exception as e:
-            st.error(f"Error al cargar los datos: {e}")
+            st.error(f"Error al cargar los datos de clasificación: {e}")
             return {}
     return {}
 
 def guardar_datos():
-    """Guarda el estado actual de la tabla en Google Sheets."""
-    sh = conectar_a_gsheets()
+    """Guarda el estado actual de la tabla de clasificación en Google Sheets."""
+    sh = conectar_a_gsheets("Hoja1")
     if sh:
         try:
-            # Preparamos los datos para ser escritos
-            datos_para_escribir = []
-            # La primera fila son los encabezados
-            encabezados = ["Equipo", "V", "E", "D", "T", "P", "PPM"]
-            datos_para_escribir.append(encabezados)
-
-            # Convertimos el diccionario de la app de nuevo a una lista de listas
+            datos_para_escribir = [["Equipo", "V", "E", "D", "T", "P", "PPM"]]
             for equipo, stats in st.session_state.tabla_clasificacion.items():
                 fila = [equipo, stats['V'], stats['E'], stats['D'], stats['T'], stats['P'], stats['PPM']]
                 datos_para_escribir.append(fila)
-
-            # Borramos la hoja y escribimos los nuevos datos
             sh.clear()
             sh.update(datos_para_escribir, 'A1')
         except Exception as e:
-            st.error(f"Error al guardar los datos: {e}")
+            st.error(f"Error al guardar los datos de clasificación: {e}")
 
-# El resto del código es casi idéntico...
+# --- NUEVA FUNCIÓN PARA EL HISTORIAL ---
+def guardar_partido_en_historial(ganador, resultado, perdedor):
+    """Añade una nueva fila a la hoja 'HistorialPartidos'."""
+    sh = conectar_a_gsheets("HistorialPartidos")
+    if sh:
+        try:
+            # Formateamos la fecha y hora actual
+            fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            nueva_fila = [fecha_actual, ganador, resultado, perdedor]
+            # append_row añade la fila al final sin borrar nada
+            sh.append_row(nueva_fila, value_input_option='USER_ENTERED')
+        except Exception as e:
+            st.error(f"Error al guardar el partido en el historial: {e}")
 
 # Al iniciar la app, cargamos los datos
 if 'tabla_clasificacion' not in st.session_state:
     st.session_state.tabla_clasificacion = cargar_datos()
 
+# --- FUNCIONES AUXILIARES (Sin cambios) ---
 def registrar_equipo_si_no_existe(nombre_equipo):
     if nombre_equipo not in st.session_state.tabla_clasificacion:
         st.session_state.tabla_clasificacion[nombre_equipo] = {'V': 0, 'E': 0, 'D': 0, 'T': 0, 'P': 0, 'PPM': 0.0}
@@ -81,6 +83,7 @@ def actualizar_estadisticas_calculadas(nombre_equipo):
     else:
         stats['PPM'] = 0.0
 
+# --- PÁGINAS DE LA APLICACIÓN ---
 def pagina_añadir_partido():
     st.header("⚽ Añadir Nuevo Partido")
     with st.form(key="partido_form"):
@@ -94,7 +97,6 @@ def pagina_añadir_partido():
         submit_button = st.form_submit_button(label="Registrar Partido")
 
     if submit_button:
-        # La lógica de validación y actualización es la misma
         if tipo_resultado == "Victoria / Derrota":
             if not ganador or not perdedor or ganador.lower() == perdedor.lower():
                 st.error("ERROR: Nombres no válidos o equipos idénticos.")
@@ -105,7 +107,8 @@ def pagina_añadir_partido():
             st.session_state.tabla_clasificacion[perdedor]['D'] += 1
             actualizar_estadisticas_calculadas(ganador)
             actualizar_estadisticas_calculadas(perdedor)
-            guardar_datos() # <- ¡Guardamos en Google Sheets!
+            guardar_datos()
+            guardar_partido_en_historial(ganador, "Victoria", perdedor) # <-- NUEVO
             st.success(f"¡Victoria para '{ganador}' registrada correctamente!")
         else: # Empate
             if not empatador or not perdedor_empate or empatador.lower() == perdedor_empate.lower():
@@ -117,7 +120,8 @@ def pagina_añadir_partido():
             st.session_state.tabla_clasificacion[perdedor_empate]['D'] += 1
             actualizar_estadisticas_calculadas(empatador)
             actualizar_estadisticas_calculadas(perdedor_empate)
-            guardar_datos() # <- ¡Guardamos en Google Sheets!
+            guardar_datos()
+            guardar_partido_en_historial(empatador, "Empate", perdedor_empate) # <-- NUEVO
             st.success(f"Empate para '{empatador}' y derrota para '{perdedor_empate}' registrados.")
 
 def pagina_mostrar_clasificacion():
@@ -132,6 +136,26 @@ def pagina_mostrar_clasificacion():
         df.index.name = "Equipo"
         st.dataframe(df)
 
+# --- NUEVA PÁGINA PARA MOSTRAR EL HISTORIAL ---
+def pagina_historial_partidos():
+    """Muestra el historial de todos los partidos jugados."""
+    st.header("📜 Historial de Partidos")
+    sh = conectar_a_gsheets("HistorialPartidos")
+    if sh:
+        try:
+            # Leemos todos los datos de la hoja de historial
+            historial = sh.get_all_records()
+            if not historial:
+                st.info("Aún no se ha registrado ningún partido en el historial.")
+            else:
+                # Convertimos a DataFrame para mostrarlo en una tabla
+                df_historial = pd.DataFrame(historial)
+                # Mostramos los partidos más recientes primero
+                st.dataframe(df_historial.iloc[::-1])
+        except Exception as e:
+            st.error(f"No se pudo cargar el historial: {e}")
+
+# El resto de páginas no cambian...
 def pagina_buscar_equipo():
     st.header("🔍 Buscar un Equipo")
     if not st.session_state.tabla_clasificacion:
@@ -150,15 +174,37 @@ def pagina_buscar_equipo():
         st.write(f"**Empates (E):** {stats['E']}")
         st.write(f"**Derrotas (D):** {stats['D']}")
 
+def pagina_borrar_datos():
+    st.header("🗑️ Borrar Clasificación")
+    st.warning("⚠️ ¡Atención! Esta acción es irreversible y borrará todos los equipos y partidos registrados.")
+    confirmacion = st.text_input("Para confirmar, escribe 'BORRAR' en mayúsculas:")
+    if st.button("Borrar toda la clasificación"):
+        if confirmacion == "BORRAR":
+            st.session_state.tabla_clasificacion = {}
+            guardar_datos()
+            st.success("¡La clasificación ha sido borrada con éxito!")
+            st.rerun()
+        else:
+            st.error("Confirmación incorrecta. La tabla no ha sido borrada.")
+
 # --- MENÚ PRINCIPAL Y EJECUCIÓN ---
 st.set_page_config(page_title="Clasificación de Liga", page_icon="🏆", layout="wide")
 st.title("🏆 Gestor de Clasificación de Liga")
 st.sidebar.title("Menú Principal")
-opcion = st.sidebar.radio("Elige una opción:", ("Añadir Partido", "Mostrar Clasificación", "Buscar Equipo"))
+
+# <-- AÑADIMOS LA NUEVA OPCIÓN AL MENÚ
+opcion = st.sidebar.radio(
+    "Elige una opción:",
+    ("Añadir Partido", "Mostrar Clasificación", "Ver Historial", "Buscar Equipo", "Borrar Clasificación")
+)
 
 if opcion == "Añadir Partido":
     pagina_añadir_partido()
 elif opcion == "Mostrar Clasificación":
     pagina_mostrar_clasificacion()
+elif opcion == "Ver Historial": # <-- AÑADIMOS EL MANEJO DE LA NUEVA PÁGINA
+    pagina_historial_partidos()
 elif opcion == "Buscar Equipo":
     pagina_buscar_equipo()
+elif opcion == "Borrar Clasificación":
+    pagina_borrar_datos()
