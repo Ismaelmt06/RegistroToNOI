@@ -9,10 +9,13 @@ CREDS = st.secrets["gcp_creds"]
 NOMBRE_HOJA_CALCULO = "BaseDeDatosToNOI" # ¡Asegúrate de que este nombre coincida!
 
 def conectar_a_gsheets():
-    """Conecta con Google Sheets usando las credenciales guardadas."""
+    """Conecta con Google Sheets usando la URL directa de la hoja."""
     try:
+        # Pega la URL completa de tu hoja de cálculo aquí dentro de las comillas
+        URL_HOJA_CALCULO = "https://docs.google.com/spreadsheets/d/18x6wCv0E7FOpuvwZpWYRSFi56E-_RR2Gm1deHyCLo2Y/edit?gid=0#gid=0"
+
         gc = gspread.service_account_from_dict(CREDS)
-        sh = gc.open(NOMBRE_HOJA_CALCULO).sheet1
+        sh = gc.open_by_url(URL_HOJA_CALCULO).sheet1
         return sh
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {e}")
