@@ -6,7 +6,7 @@ import gspread # Nueva librería
 
 # Usamos los "Secrets" de Streamlit para guardar las credenciales de forma segura
 CREDS = st.secrets["gcp_creds"]
-NOMBRE_HOJA_CALCULO = "BaseDeDatosLiga" # ¡Asegúrate de que este nombre coincida!
+NOMBRE_HOJA_CALCULO = "BaseDeDatosToNOI" # ¡Asegúrate de que este nombre coincida!
 
 def conectar_a_gsheets():
     """Conecta con Google Sheets usando las credenciales guardadas."""
