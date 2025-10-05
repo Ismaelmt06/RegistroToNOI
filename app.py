@@ -17,7 +17,7 @@ def conectar_a_gsheets(nombre_hoja):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return None
 
-# --- MOTOR DE CÁLCULO DE ESTADÍSTICAS ---
+# --- MOTOR DE CÁLCULO DE ESTADÍSTICAS (CORREGIDO) ---
 def calcular_todas_las_estadisticas(historial):
     if not historial:
         return {}
@@ -45,33 +45,43 @@ def calcular_todas_las_estadisticas(historial):
 
         asegurar_equipo(ganador)
         asegurar_equipo(perdedor)
-
+        
+        # --- Lógica de la Clasificación General (V, E, D) ---
         if resultado == "Empate":
             clasificacion[ganador]['E'] += 1
         else:
             clasificacion[ganador]['V'] += 1
         clasificacion[perdedor]['D'] += 1
 
+        # --- Lógica de la Mejor Racha ---
         rachas_actuales[ganador] += 1
         if rachas_actuales[ganador] > clasificacion[ganador]['Mejor Racha']:
             clasificacion[ganador]['Mejor Racha'] = rachas_actuales[ganador]
         rachas_actuales[perdedor] = 0
 
+        # --- Lógica de Destronamiento y Partidos con Trofeo (CORREGIDA) ---
         if i == 0:
             portador_trofeo = ganador
         else:
             portador_en_partido = portador_trofeo
+            
+            # Si el portador de la ronda anterior jugó en este partido
             if ganador == portador_en_partido or perdedor == portador_en_partido:
                 aspirante = ganador if perdedor == portador_en_partido else perdedor
                 
+                # Un intento siempre ocurre cuando un aspirante juega contra el portador
                 clasificacion[aspirante]['Intentos'] += 1
                 
                 if resultado == "Victoria" and ganador == aspirante:
+                    # El aspirante gana, hay destronamiento
                     clasificacion[aspirante]['Destronamientos'] += 1
-                    portador_trofeo = aspirante
+                    portador_trofeo = aspirante # Se convierte en el nuevo portador
                 else: 
+                    # El portador gana o empata, retiene el trofeo
+                    # Esto cuenta como un partido defendido con éxito
                     clasificacion[portador_en_partido]['Partidos con Trofeo'] += 1
 
+    # --- Cálculos Finales ---
     for equipo, stats in clasificacion.items():
         stats['T'] = stats['V'] + stats['E'] + stats['D']
         stats['P'] = (stats['V'] * 2) + (stats['E'] * 1)
@@ -101,14 +111,12 @@ def guardar_clasificacion_completa():
     sh_clasif = conectar_a_gsheets("Hoja1")
     if sh_clasif:
         clasif_para_guardar = st.session_state.get('clasificacion', {})
-        # CAMBIO: Nuevos nombres y orden de encabezados
         encabezados = [
             "Equipo", "PJ", "V", "E", "D", "P", "PPP", "Partidos con Trofeo",
             "Mejor Racha", "Intentos", "Destronamientos", "Indice Destronamiento"
         ]
         datos = [encabezados]
         for eq, stats in clasif_para_guardar.items():
-            # CAMBIO: Nuevo orden de guardado
             fila = [
                 eq, stats['T'], stats['V'], stats['E'], stats['D'], stats['P'], stats['PPM'],
                 stats['Partidos con Trofeo'], stats['Mejor Racha'], stats['Intentos'],
@@ -201,13 +209,11 @@ def pagina_mostrar_clasificacion():
         df['PPM'] = df['PPM'].map('{:,.2f}'.format)
         df['Indice Destronamiento'] = df['Indice Destronamiento'].map('{:,.2f}%'.format)
 
-        # CAMBIO: Nuevo orden de columnas para mostrar
         nuevo_orden_display = [
             "T", "V", "E", "D", "P", "PPM",
             "Partidos con Trofeo", "Mejor Racha", "Intentos", "Destronamientos",
             "Indice Destronamiento"
         ]
-        # CAMBIO: Nuevos nombres para las columnas
         nuevos_nombres = {
             "T": "PJ", "V": "V", "E": "E", "D": "D", "P": "P", "PPM": "PPP",
             "Partidos con Trofeo": "Partidos con Trofeo", "Mejor Racha": "Mejor Racha",
