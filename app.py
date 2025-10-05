@@ -8,7 +8,6 @@ CREDS = st.secrets["gcp_creds"]
 ID_HOJA_CALCULO = "18x6wCv0E7FOpuvwZpWYRSFi56E-_RR2Gm1deHyCLo2Y" # ¡¡¡ASEGÚRATE DE QUE TU ID ESTÁ AQUÍ!!!
 
 def conectar_a_gsheets(nombre_hoja):
-    """Conecta con Google Sheets usando la ID única del archivo."""
     try:
         gc = gspread.service_account_from_dict(CREDS)
         sh = gc.open_by_key(ID_HOJA_CALCULO).worksheet(nombre_hoja)
@@ -17,15 +16,13 @@ def conectar_a_gsheets(nombre_hoja):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return None
 
-# --- MOTOR DE CÁLCULO DE ESTADÍSTICAS (CORREGIDO) ---
+# --- MOTOR DE CÁLCULO DE ESTADÍSTICAS ---
 def calcular_todas_las_estadisticas(historial):
     if not historial:
         return {}
-
     clasificacion = {}
     rachas_actuales = {}
     portador_trofeo = None
-
     def asegurar_equipo(equipo):
         if equipo not in clasificacion:
             clasificacion[equipo] = {
@@ -34,69 +31,49 @@ def calcular_todas_las_estadisticas(historial):
                 'Indice Destronamiento': 0.0, 'Partidos con Trofeo': 0
             }
             rachas_actuales[equipo] = 0
-
     for i, partido in enumerate(historial):
         ganador = partido.get('Equipo Ganador')
         perdedor = partido.get('Equipo Perdedor')
         resultado = partido.get('Resultado')
-
         if not all([ganador, perdedor, resultado]):
             continue
-
         asegurar_equipo(ganador)
         asegurar_equipo(perdedor)
-        
-        # --- Lógica de la Clasificación General (V, E, D) ---
         if resultado == "Empate":
             clasificacion[ganador]['E'] += 1
         else:
             clasificacion[ganador]['V'] += 1
         clasificacion[perdedor]['D'] += 1
-
-        # --- Lógica de la Mejor Racha ---
         rachas_actuales[ganador] += 1
         if rachas_actuales[ganador] > clasificacion[ganador]['Mejor Racha']:
             clasificacion[ganador]['Mejor Racha'] = rachas_actuales[ganador]
         rachas_actuales[perdedor] = 0
-
-        # --- Lógica de Destronamiento y Partidos con Trofeo (CORREGIDA) ---
         if i == 0:
             portador_trofeo = ganador
         else:
             portador_en_partido = portador_trofeo
-            
-            # Si el portador de la ronda anterior jugó en este partido
             if ganador == portador_en_partido or perdedor == portador_en_partido:
                 aspirante = ganador if perdedor == portador_en_partido else perdedor
-                
-                # Un intento siempre ocurre cuando un aspirante juega contra el portador
                 clasificacion[aspirante]['Intentos'] += 1
-                
                 if resultado == "Victoria" and ganador == aspirante:
-                    # El aspirante gana, hay destronamiento
                     clasificacion[aspirante]['Destronamientos'] += 1
-                    portador_trofeo = aspirante # Se convierte en el nuevo portador
+                    portador_trofeo = aspirante
                 else: 
-                    # El portador gana o empata, retiene el trofeo
-                    # Esto cuenta como un partido defendido con éxito
                     clasificacion[portador_en_partido]['Partidos con Trofeo'] += 1
-
-    # --- Cálculos Finales ---
     for equipo, stats in clasificacion.items():
         stats['T'] = stats['V'] + stats['E'] + stats['D']
         stats['P'] = (stats['V'] * 2) + (stats['E'] * 1)
         stats['PPM'] = (stats['P'] / stats['T']) if stats['T'] > 0 else 0.0
         if stats['Intentos'] > 0:
             stats['Indice Destronamiento'] = (stats['Destronamientos'] / stats['Intentos']) * 100
-    
     if portador_trofeo and portador_trofeo in clasificacion:
         clasificacion[portador_trofeo]['Portador'] = True
-
     return clasificacion
 
 # --- GESTIÓN DE DATOS ---
 def recargar_y_recalcular_todo():
-    historial = conectar_a_gsheets("HistorialPartidos").get_all_records() if conectar_a_gsheets("HistorialPartidos") else []
+    sh_historial = conectar_a_gsheets("HistorialPartidos")
+    historial = sh_historial.get_all_records() if sh_historial else []
     clasificacion_calculada = calcular_todas_las_estadisticas(historial)
     st.session_state.clasificacion = clasificacion_calculada
     st.session_state.historial = historial
@@ -201,26 +178,18 @@ def pagina_mostrar_clasificacion():
         st.info("Aún no hay datos. Añade el primer partido para empezar.")
     else:
         df = pd.DataFrame.from_dict(clasif, orient='index').sort_values(by="P", ascending=False)
-        
         df['Equipo'] = df.index
         df['Equipo'] = df.apply(lambda row: f"{row['Equipo']} 👑" if row.get('Portador') else row['Equipo'], axis=1)
         df = df.set_index('Equipo')
-        
         df['PPM'] = df['PPM'].map('{:,.2f}'.format)
         df['Indice Destronamiento'] = df['Indice Destronamiento'].map('{:,.2f}%'.format)
 
-        nuevo_orden_display = [
-            "T", "V", "E", "D", "P", "PPM",
-            "Partidos con Trofeo", "Mejor Racha", "Intentos", "Destronamientos",
-            "Indice Destronamiento"
-        ]
+        nuevo_orden_display = ["T", "V", "E", "D", "P", "PPM", "Partidos con Trofeo", "Mejor Racha", "Intentos", "Destronamientos", "Indice Destronamiento"]
         nuevos_nombres = {
             "T": "PJ", "V": "V", "E": "E", "D": "D", "P": "P", "PPM": "PPP",
             "Partidos con Trofeo": "Partidos con Trofeo", "Mejor Racha": "Mejor Racha",
-            "Intentos": "Intentos", "Destronamientos": "Destronamientos", 
-            "Indice Destronamiento": "Índice Éxito"
+            "Intentos": "Intentos", "Destronamientos": "Destronamientos", "Indice Destronamiento": "Índice Éxito"
         }
-        
         df_display = df[nuevo_orden_display].rename(columns=nuevos_nombres)
         st.dataframe(df_display)
 
@@ -238,35 +207,46 @@ def pagina_eliminar_partido():
     if not historial:
         st.info("No hay partidos en el historial para eliminar.")
         return
-
     opciones_partidos = [f"Partido {i+1} ({p['Fecha']}): {p['Equipo Ganador']} vs {p['Equipo Perdedor']}" for i, p in enumerate(historial)]
     partido_a_eliminar = st.selectbox("Selecciona el partido a eliminar:", options=opciones_partidos, index=None, placeholder="Elige un partido...")
-
     if partido_a_eliminar:
         if st.button("Eliminar Partido Seleccionado"):
             indice = opciones_partidos.index(partido_a_eliminar)
             nuevo_historial = [p for i, p in enumerate(historial) if i != indice]
-            
             reescribir_historial_completo(nuevo_historial)
             recargar_y_recalcular_todo()
             guardar_clasificacion_completa()
-            
             st.success("¡Partido eliminado! La página se recargará.")
             st.rerun()
 
+# --- CORRECCIÓN EN LA FUNCIÓN DE BORRADO ---
 def pagina_borrar_datos():
     st.header("🗑️ Borrar Todo")
     st.warning("⚠️ ¡Atención! Esto borrará AMBAS hojas: la clasificación y el historial completo.")
     confirmacion = st.text_input("Para confirmar, escribe 'BORRAR TODO' en mayúsculas:")
     if st.button("Borrar toda la información"):
         if confirmacion == "BORRAR TODO":
+            # Borramos y re-escribimos los encabezados para evitar errores futuros
             sh_clasif = conectar_a_gsheets("Hoja1")
+            if sh_clasif:
+                sh_clasif.clear()
+                encabezados_clasif = [
+                    "Equipo", "PJ", "V", "E", "D", "P", "PPP", "Partidos con Trofeo",
+                    "Mejor Racha", "Intentos", "Destronamientos", "Indice Destronamiento"
+                ]
+                sh_clasif.update([encabezados_clasif], 'A1')
+
             sh_historial = conectar_a_gsheets("HistorialPartidos")
-            if sh_clasif: sh_clasif.clear()
-            if sh_historial: sh_historial.clear()
+            if sh_historial:
+                sh_historial.clear()
+                encabezados_historial = ["Fecha", "Equipo Ganador", "Resultado", "Equipo Perdedor"]
+                sh_historial.update([encabezados_historial], 'A1')
+            
             st.session_state.clear()
             st.success("¡Todos los datos han sido borrados! La página se recargará.")
             st.rerun()
+        else:
+            st.error("Confirmación incorrecta.")
 
 # --- MENÚ PRINCIPAL ---
 st.set_page_config(page_title="ToNOI", page_icon="👑", layout="wide")
