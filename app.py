@@ -7,6 +7,10 @@ from datetime import datetime
 CREDS = st.secrets["gcp_creds"]
 ID_HOJA_CALCULO = "18x6wCv0E7FOpuvwZpWYRSFi56E-_RR2Gm1deHyCLo2Y" # ¡¡¡ASEGÚRATE DE QUE TU ID ESTÁ AQUÍ!!!
 
+# --- CONFIGURACIÓN Y CONEXIÓN ---
+CREDS = st.secrets["gcp_creds"]
+ID_HOJA_CALCULO = "AQUI_VA_LA_ID_DE_TU_HOJA" # ¡¡¡ASEGÚRATE DE QUE TU ID ESTÁ AQUÍ!!!
+
 def conectar_a_gsheets(nombre_hoja):
     try:
         gc = gspread.service_account_from_dict(CREDS)
@@ -127,20 +131,27 @@ def pagina_añadir_partido():
     st.header("⚽ Añadir Nuevo Partido")
     portador = st.session_state.get('portador_actual', None)
     historial = st.session_state.get('historial', [])
+
+    # --- 1º MEJORA: MOSTRAR NÚMERO DE ÚLTIMO PARTIDO ---
     if historial:
         ultimo_partido = historial[-1]
+        num_partido = len(historial)
         ganador_lp = ultimo_partido.get('Equipo Ganador')
         perdedor_lp = ultimo_partido.get('Equipo Perdedor')
         resultado_lp = ultimo_partido.get('Resultado')
+        
         if resultado_lp == "Empate":
             mensaje = f"**{ganador_lp}** empató contra **{perdedor_lp}** (Empate)"
         else:
             mensaje = f"**{ganador_lp}** ganó a **{perdedor_lp}** (Victoria)"
-        st.info(f"⏪ **Último partido registrado:** {mensaje}")
+        
+        st.info(f"⏪ **Último partido registrado (Partido Nº {num_partido}):** {mensaje}")
+    
     if not portador and not historial:
         st.info("No hay campeón actual. Se registrará el primer partido para determinarlo.")
     else:
         st.info(f"El campeón actual que debe defender el título es: **{portador}** 👑")
+
     with st.form(key="partido_form"):
         tipo_resultado = st.radio("Elige el tipo de resultado:", ("Victoria / Derrota", "Empate"))
         if tipo_resultado == "Victoria / Derrota":
@@ -150,6 +161,7 @@ def pagina_añadir_partido():
             equipo_A = st.text_input("Equipo A")
             equipo_B = st.text_input("Equipo B")
         submit_button = st.form_submit_button(label="Registrar Partido")
+
     if submit_button:
         if tipo_resultado == "Victoria / Derrota":
             equipos = [equipo_ganador, equipo_perdedor]
@@ -179,20 +191,31 @@ def pagina_mostrar_clasificacion():
         st.info("Aún no hay datos. Añade el primer partido para empezar.")
     else:
         df = pd.DataFrame.from_dict(clasif, orient='index').sort_values(by="P", ascending=False)
+        
+        # --- 2º MEJORA: COLUMNA DE POSICIÓN AL PRINCIPIO ---
+        df = df.reset_index().rename(columns={'index': 'Equipo'})
         df.insert(0, 'Pos.', range(1, len(df) + 1))
-        df['Equipo'] = df.index
+        
         df['Equipo'] = df.apply(lambda row: f"{row['Equipo']} 👑" if row.get('Portador') else row['Equipo'], axis=1)
-        df = df.set_index('Equipo')
+        
         df['PPM'] = df['PPM'].map('{:,.2f}'.format)
         df['Indice Destronamiento'] = df['Indice Destronamiento'].map('{:,.2f}%'.format)
-        nuevo_orden_display = ["Pos.", "T", "V", "E", "D", "P", "PPM", "Partidos con Trofeo", "Mejor Racha", "Intentos", "Destronamientos", "Indice Destronamiento"]
+
+        nuevo_orden_display = [
+            "Pos.", "Equipo", "T", "V", "E", "D", "P", "PPM",
+            "Partidos con Trofeo", "Mejor Racha", "Intentos", "Destronamientos",
+            "Indice Destronamiento"
+        ]
         nuevos_nombres = {
             "T": "PJ", "V": "V", "E": "E", "D": "D", "P": "P", "PPM": "PPP",
             "Partidos con Trofeo": "Partidos con Trofeo", "Mejor Racha": "Mejor Racha",
-            "Intentos": "Intentos", "Destronamientos": "Destronamientos", "Indice Destronamiento": "Índice Éxito"
+            "Intentos": "Intentos", "Destronamientos": "Destronamientos", 
+            "Indice Destronamiento": "Índice Éxito"
         }
+        
         df_display = df[nuevo_orden_display].rename(columns=nuevos_nombres)
-        st.dataframe(df_display)
+        # Usamos hide_index=True para que no aparezca el índice numérico de Pandas
+        st.dataframe(df_display, hide_index=True)
 
 def pagina_historial_partidos():
     st.header("📜 Historial de Partidos")
