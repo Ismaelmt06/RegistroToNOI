@@ -131,7 +131,7 @@ def pagina_añadir_partido():
     # --- 1º MEJORA: MOSTRAR NÚMERO DE ÚLTIMO PARTIDO ---
     if historial:
         ultimo_partido = historial[-1]
-        num_partido = len(historial)
+        num_partido = len(historial) -1
         ganador_lp = ultimo_partido.get('Equipo Ganador')
         perdedor_lp = ultimo_partido.get('Equipo Perdedor')
         resultado_lp = ultimo_partido.get('Resultado')
