@@ -124,7 +124,7 @@ def pagina_añadir_partido():
     if historial:
         lp = historial[-1]
         msg = f"**{lp['Equipo Ganador']}** empató contra **{lp['Equipo Perdedor']}**" if lp['Resultado'] == "Empate" else f"**{lp['Equipo Ganador']}** ganó a **{lp['Equipo Perdedor']}**"
-        st.info(f"⏪ **Último partido (Nº {len(historial)}):** {msg}")
+        st.info(f"⏪ **Último partido (Nº {len(historial) - 1}):** {msg}")
     if not portador and not historial: st.info("No hay campeón actual. Se registrará el primer partido.")
     else: st.info(f"El campeón actual es: **{portador}** 👑")
     with st.form(key="partido_form"):
