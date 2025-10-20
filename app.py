@@ -3,33 +3,26 @@ import pandas as pd
 import gspread
 from datetime import datetime
 from collections import Counter
-import time
 
 # --- CONFIGURACIÓN Y CONEXIÓN ---
 CREDS = st.secrets["gcp_creds"]
 ID_HOJA_CALCULO = "18x6wCv0E7FOpuvwZpWYRSFi56E-_RR2Gm1deHyCLo2Y" # ¡¡¡ASEGÚRATE DE QUE TU ID ESTÁ AQUÍ!!!
 
-# --- FUNCIÓN DE CONEXIÓN MEJORADA CON REINTENTOS ---
+# --- FUNCIÓN DE CONEXIÓN ORIGINAL ---
 def conectar_a_gsheets(nombre_hoja):
-    """Conecta con Google Sheets, reintentando en caso de fallo temporal."""
-    for attempt in range(3): # Intentará conectar hasta 3 veces
-        try:
-            gc = gspread.service_account_from_dict(CREDS)
-            sh = gc.open_by_key(ID_HOJA_CALCULO).worksheet(nombre_hoja)
-            return sh # Si tiene éxito, devuelve la hoja y sale de la función
-        except gspread.exceptions.SpreadsheetNotFound:
-            # Si es el último intento, muestra el error
-            if attempt == 2:
-                st.error("Error Crítico: La hoja de cálculo no se encuentra. Verifica la ID y los permisos de compartir.")
-                return None
-            time.sleep(2) # Espera 2 segundos antes de reintentar
-        except Exception as e:
-            # Para otros errores, también reintenta
-            if attempt == 2:
-                st.error(f"Error al conectar con Google Sheets tras varios intentos: {e}")
-                return None
-            time.sleep(2)
-    return None # Si el bucle termina sin éxito
+    """Conecta con Google Sheets usando la ID única del archivo."""
+    try:
+        gc = gspread.service_account_from_dict(CREDS)
+        sh = gc.open_by_key(ID_HOJA_CALCULO).worksheet(nombre_hoja)
+        return sh
+    except gspread.exceptions.WorksheetNotFound:
+        st.error(f"Error: No se encuentra la pestaña '{nombre_hoja}'. Por favor, créala con el nombre exacto.")
+        return None
+    except Exception as e:
+        st.error(f"Error al conectar con Google Sheets: {e}")
+        return None
+    
+
 # --- MOTORES DE CÁLCULO ---
 def calcular_todas_las_estadisticas(historial):
     # (El código de esta función no cambia)
