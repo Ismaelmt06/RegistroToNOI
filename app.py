@@ -374,34 +374,6 @@ def pagina_borrar_datos():
 # --- MENÚ PRINCIPAL Y ROUTER ---
 # (Sin cambios en esta sección)
 st.set_page_config(page_title="ToNOI", page_icon="👑", layout="wide")
-hide_streamlit_style = """
-<style>
-/* Oculta la cabecera (Fork, GitHub, Menú de 3 puntos) */
-[data-testid="stHeader"] {
-    display: none !important;
-}
-
-/* Oculta la barra de herramientas (icono morado) */
-[data-testid="stToolbar"] {
-    display: none !important;
-}
-
-/* Oculta el footer (Made with Streamlit) */
-footer {
-    display: none !important;
-}
-
-/* Oculta el botón rojo de deploy (corona) - Selector doble */
-[data-testid="stStatusWidget"] {
-    display: none !important;
-}
-iframe[title="streamlit-deploy-button"] {
-    display: none !important;
-}
-</style>
-"""
-
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 st.title("👑 Torneo No Oficial de Inglaterra (ToNOI)")
 
 if 'active_page' not in st.session_state:
