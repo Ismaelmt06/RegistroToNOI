@@ -378,27 +378,25 @@ hide_streamlit_style = """
 <style>
 /* Oculta la cabecera (Fork, GitHub, Menú de 3 puntos) */
 [data-testid="stHeader"] {
-    visibility: hidden;
-    height: 0%;
-    position: fixed;
+    display: none !important;
 }
 
-/* Oculta la barra de herramientas (icono morado abajo a la izquierda) */
+/* Oculta la barra de herramientas (icono morado) */
 [data-testid="stToolbar"] {
-    visibility: hidden;
-    height: 0%;
-    position: fixed;
+    display: none !important;
 }
 
 /* Oculta el footer (Made with Streamlit) */
 footer {
-    visibility: hidden;
-    height: 0%;
+    display: none !important;
 }
 
-/* Oculta el botón rojo de deploy (es un iframe) */
+/* Oculta el botón rojo de deploy (corona) - Selector doble */
+[data-testid="stStatusWidget"] {
+    display: none !important;
+}
 iframe[title="streamlit-deploy-button"] {
-    display: none;
+    display: none !important;
 }
 </style>
 """
