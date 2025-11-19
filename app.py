@@ -41,7 +41,6 @@ def calcular_todas_las_estadisticas(historial):
         ganador = partido.get('Equipo Ganador')
         perdedor = partido.get('Equipo Perdedor')
         resultado = partido.get('Resultado')
-        # Aseguramos que leemos el resultado manual como string y sin espacios extra
         resultado_manual = str(partido.get('ResultadoManual', '')).strip()
         
         if not all([ganador, perdedor, resultado]): continue
@@ -90,7 +89,7 @@ def calcular_todas_las_estadisticas(historial):
                 clasificacion[perdedor]['GF'] += goles_perdedor
                 clasificacion[perdedor]['GC'] += goles_ganador
             except ValueError:
-                pass # Si el formato no es número-número, se ignora silenciosamente
+                pass
 
     # --- CÁLCULOS FINALES ---
     for equipo, stats in clasificacion.items():
@@ -241,22 +240,60 @@ def pagina_añadir_partido():
 
 def pagina_mostrar_clasificacion():
     st.header("📊 Clasificación General")
+    
+    # Leyenda Explicativa
+    st.markdown("""
+    <style>
+        .leyenda-text { font-size: 0.85em; color: #555; margin-bottom: 10px; }
+    </style>
+    <div class="leyenda-text">
+        <b>PJ:</b> Partidos Jugados | <b>V/E/D:</b> Victorias/Empates/Derrotas | <b>P:</b> Puntos <br>
+        <b>GF/GC/DG:</b> Goles Favor/Contra/Diferencia | <b>PPP:</b> Puntos Por Partido <br>
+        <b>🏆 TÍTULO:</b> <b>PcT:</b> Partidos con Trofeo | <b>MR:</b> Mejor Racha | 
+        <b>Des:</b> Destronamientos (Títulos ganados) | <b>I:</b> Intentos | <b>ID:</b> Índice de Destronamiento (%)
+    </div>
+    """, unsafe_allow_html=True)
+
     clasif = st.session_state.get('clasificacion', {})
     if not clasif: st.info("Aún no hay datos."); return
+    
+    # Crear DataFrame
     df = pd.DataFrame.from_dict(clasif, orient='index').sort_values(by="P", ascending=False).reset_index().rename(columns={'index': 'Equipo'})
+    
+    # Añadir Posición
     df.insert(0, 'Pos.', range(1, len(df) + 1))
+    
+    # Marcar al portador con corona
     df['Equipo'] = df.apply(lambda row: f"{row['Equipo']} 👑" if row.get('Portador') else row['Equipo'], axis=1)
+    
+    # Formatear decimales
     df['PPM'] = df['PPM'].map('{:,.2f}'.format)
     df['Indice Destronamiento'] = df['Indice Destronamiento'].map('{:,.2f}%'.format)
     
-    nuevo_orden = ["Pos.", "Equipo", "T", "V", "E", "D", "GF", "GC", "DG", "P", "PPM", "Partidos con Trofeo", "Mejor Racha", "Intentos", "Destronamientos", "Indice Destronamiento"]
-    columnas_ok = [c for c in nuevo_orden if c in df.columns]
+    # Definir el orden EXACTO solicitado
+    # Mapeo interno de nombres -> nombres internos originales
+    orden_interno = [
+        "Pos.", "Equipo", "T", "V", "E", "D", "P", 
+        "GF", "GC", "DG", "PPM", 
+        "Partidos con Trofeo", "Mejor Racha", "Destronamientos", "Intentos", "Indice Destronamiento"
+    ]
     
+    # Filtrar solo columnas que existen para evitar errores
+    columnas_finales = [c for c in orden_interno if c in df.columns]
+    df_final = df[columnas_finales]
+
+    # Renombrar a las siglas solicitadas
     nuevos_nombres = {
-        "T": "PJ", "PPM": "PPP", 
-        "Indice Destronamiento": "Índice Éxito"
+        "T": "PJ",
+        "PPM": "PPP",
+        "Partidos con Trofeo": "PcT",
+        "Mejor Racha": "MR",
+        "Destronamientos": "Des", # Usamos 'Des' para no duplicar la 'D' de Derrotas
+        "Intentos": "I",
+        "Indice Destronamiento": "ID"
     }
-    st.dataframe(df[columnas_ok].rename(columns=nuevos_nombres), hide_index=True)
+    
+    st.dataframe(df_final.rename(columns=nuevos_nombres), hide_index=True)
 
 def pagina_historial_partidos():
     st.header("📜 Historial de Partidos")
